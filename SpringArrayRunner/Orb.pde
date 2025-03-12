@@ -1,83 +1,51 @@
 class Orb {
-  PVector position;
+
+  //instance variables
+  PVector center;
   PVector velocity;
   PVector acceleration;
-
-  int size;
+  float bsize;
   float mass;
   color c;
 
-  Orb (int x, int y, int s, float m) {
-    position = new PVector(x, y);
-    size = s;
-    mass = m;
-    velocity = new PVector(0, 0);
-    acceleration = new PVector(0, 0);
-    c = color(0, 255, 255);
-    color c1 = color(0);
-    c = lerpColor(c, c1, (mass/size)/(MAX_MASS/MIN_SIZE));
-  }//constructor
 
   Orb() {
-    size = int(random(MIN_SIZE, MAX_SIZE));
-    int x = int(random(size/2, width - size/2));
-    int y = int(random(size/2, height - size/2));
-    mass = random(MIN_MASS, MAX_MASS);
-    position = new PVector(x, y);
-    velocity = new PVector(0, 0);
-    acceleration = new PVector(0, 0);
-    c = color (0, 255, 255);
-    color c1 = color(0);
-    c = lerpColor(c, c1, (mass/size)/(MAX_MASS/MIN_SIZE));
-  }//default constructor
+     bsize = random(10, MAX_SIZE);
+     float x = random(bsize/2, width-bsize/2);
+     float y = random(bsize/2, height-bsize/2);
+     center = new PVector(x, y);
+     mass = random(10, 100);
+     velocity = new PVector();
+     acceleration = new PVector();
+     setColor();
+  }
 
-  void display() {
-    fill(c);
-    stroke(0);
-    circle(position.x, position.y, size);
-  }//display
+  Orb(float x, float y, float s, float m) {
+     bsize = s;
+     mass = m;
+     center = new PVector(x, y);
+     velocity = new PVector();
+     acceleration = new PVector();
+     setColor();
+   }
+
+  //movement behavior
+  void move(boolean bounce) {
+    if (bounce) {
+      xBounce();
+      yBounce();
+    }
+
+    velocity.add(acceleration);
+    center.add(velocity);
+    acceleration.mult(0);
+  }//move
 
   void applyForce(PVector force) {
-    PVector scaleForce = force.copy().div(mass);
+    PVector scaleForce = force.copy();
+    scaleForce.div(mass);
     acceleration.add(scaleForce);
-  }//applyForce
-
-  void run() {
-    velocity.add(acceleration);
-    position.add(velocity);
-    acceleration.mult(0);
-
-    yBounce();
-    xBounce();
-  }//run
-
-  //spring force between calling orb and other
-  PVector getSpring(Orb other, int springLength, float springK) {
-    PVector direction = PVector.sub(other.position, this.position);
-    direction.normalize();
-
-    float displacement = this.position.dist(other.position) - springLength;
-    float mag = springK * displacement;
-    direction.mult(mag);
-
-    return direction;
-  }//getSpring
-
-  //force of gravity other is exerting on calling object
-  PVector getGravity(Orb other, float gConstant) {
-    PVector g = new PVector(0, 0);
-    if ( other != this ) {
-      float d = this.position.dist(other.position);
-      //d = max(5, d);
-      d = constrain(d, 5, height);
-      float mag = (gConstant * mass * other.mass) / (d * d);
-      PVector direction = PVector.sub(other.position, this.position);
-      direction.normalize();
-      direction.mult(mag);
-      return direction;
-    }//do not find gravity of an Orb and itself
-    return g;
-  }//getGravity
+  }
 
   PVector getDragForce(float cd) {
     float dragMag = velocity.mag();
@@ -86,29 +54,88 @@ class Orb {
     dragForce.normalize();
     dragForce.mult(dragMag);
     return dragForce;
-  }//getDragForce
+  }
 
+  PVector getGravity(Orb other, float G) {
+    float strength = G * mass*other.mass;
+    //dont want to divide by 0!
+    float r = max(center.dist(other.center), MIN_SIZE);
+    strength = strength/ pow(r, 2);
+    PVector force = other.center.copy();
+    force.sub(center);
+    force.mult(strength);
+    return force;
+  }
 
-  void yBounce() {
-    if (position.y < size/2) {
-      position.y = size/2;
-      velocity.y *= -0.99;
+  /* ===================================
+    getSpring()
+
+    This should calculate the force felt on the calling object by
+    a spring between the calling object and other.
+
+    The resulting force should pull the calling object towards
+    other if the spring is extended past springLength and should
+    push the calling object away from o if the spring is compressed
+    to be less than springLength.
+
+    F = kx (ABhat)
+      k: Spring constant
+      x: displacement, the difference of the distance
+         between A and B and the length of the spring.
+      (ABhat): The normalized vector from A to B
+  =================================== */
+  PVector getSpring(Orb other, int springLength, float springK) {
+    PVector direction = new PVector();
+
+    return direction;
+  }//getSpring
+
+  boolean yBounce(){
+    if (center.y > height - bsize/2) {
+      velocity.y *= -1;
+      center.y = height - bsize/2;
+
+      return true;
+    }//bottom bounce
+    else if (center.y < bsize/2) {
+      velocity.y*= -1;
+      center.y = bsize/2;
+      return true;
     }
-    else if (position.y >= (height-size/2)) {
-      position.y = height - size/2;
-      velocity.y *= -0.99;
-    }
+    return false;
   }//yBounce
-
-  void xBounce() {
-    if (position.x < size/2) {
-      position.x = size/2;
-      velocity.x *= -0.99;
+  boolean xBounce() {
+    if (center.x > width - bsize/2) {
+      center.x = width - bsize/2;
+      velocity.x *= -1;
+      return true;
     }
-    else if (position.x >= width - size/2) {
-      position.x = width - size/2;
-      velocity.x *= -0.99;
+    else if (center.x < bsize/2) {
+      center.x = bsize/2;
+      velocity.x *= -1;
+      return true;
     }
-  }//xBounce
+    return false;
+  }//xbounce
 
-}//Orb
+  boolean collisionCheck(Orb other) {
+    return ( this.center.dist(other.center)
+             <= (this.bsize/2 + other.bsize/2) );
+  }//collisionCheck
+
+
+  void setColor() {
+    color c0 = color(0, 255, 255);
+    color c1 = color(0);
+    c = lerpColor(c0, c1, (mass-MIN_SIZE)/(MAX_MASS-MIN_SIZE));
+  }//setColor
+
+  //visual behavior
+  void display() {
+    noStroke();
+    fill(c);
+    circle(center.x, center.y, bsize);
+    fill(0);
+    //text(mass, center.x, center.y);
+  }//display
+}//Ball
